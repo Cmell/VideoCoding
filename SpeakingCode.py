@@ -60,10 +60,27 @@ class SpeakingCodes:
             heapq.heappush(self.codes[self.currentSpeaker], tempCode)
 
     def removeinout(self, code):
+        assert type(code) is tuple
         self.codes[self.currentSpeaker].remove(code)
 
     def editpoint(self, speakerNumber, code):
         pass
+
+    def itemCompare(self, item1, item2):
+        """
+        Item comparison method, implemented primarily for the GUI list sorting, but could be used here in the future.
+        :param item1:
+        :param item2:
+        :return:
+        """
+        i1 = int(item1)
+        i2 = int(item2)
+        if i1 == i2:
+            return 0
+        elif i1 < i2:
+            return -1
+        elif i2 < i1:
+            return 1
 
     def checkinpoint(self, time):
         """

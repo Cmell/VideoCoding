@@ -204,7 +204,6 @@ class Panel1(wx.Panel):
         self.Bind(wx.EVT_CHAR_HOOK, self.char)
         #self.mc.Bind(wx.EVT_CHAR, self.char)
 
-
         self.actiondictionary = {
             72:self.onJump,
             74:self.playSlower,
@@ -451,7 +450,31 @@ class Panel1(wx.Panel):
         self.prevPoint(self.ClusterList)
 
     def changePointSpeaker(self, evt):
-        pass
+        if self.InOutList.GetSelectedItemCount() > 0:
+            point = (
+                int(self.InOutList.GetItemText(self.InOutList.GetFirstSelected(), col=0)),
+                int(self.InOutList.GetItemText(self.InOutList.GetFirstSelected(), col=1))
+            )
+
+            speakers=[]
+            for i in range(1, self.codeBank.numSpeakers+1):
+                speakers.append(str(i))
+
+            dlg = wx.SingleChoiceDialog(
+                self, "Which speaker should this point belong to?", "Change Speaker",
+                speakers, wx.CHOICEDLG_STYLE
+            )
+
+            if dlg.ShowModal() == wx.ID_OK:
+                self.codeBank.removeinout(point)
+                newSpeak = int(dlg.GetStringSelection())
+                self.codeBank.changecurrentspeaker(newSpeak)
+                self.addPoint(point)
+                self.refreshThings()
+
+                # Select the point so it's obvious:
+                i = self.InOutList.FindItem(-1, str(point[0]))
+                self.InOutList.Select(i, on=True)
 
     def copyPointToSpeaker(self, evt):
         if self.codeBank is not None:
@@ -460,12 +483,14 @@ class Panel1(wx.Panel):
                 pt = (int(self.ClusterList.GetItemText(item, col=0)), int(self.ClusterList.GetItemText(item, col=1)))
                 self.addPoint(pt)
                 item = self.ClusterList.GetNextSelected(item)
+            self.refreshThings()
 
     def copyAllPointsToSpeaker(self, evt):
         if self.codeBank is not None:
             for item in range(self.ClusterList.GetItemCount()):
                 pt = (int(self.ClusterList.GetItemText(item, col=0)), int(self.ClusterList.GetItemText(item, col=1)))
                 self.addPoint(pt)
+            self.refreshThings()
 
     def loadSegFile(self, evt):
 
@@ -489,8 +514,14 @@ class Panel1(wx.Panel):
 
     def reloadClusterChoice(self):
         self.clusterChoice.Clear()
+        items = []
         for c in range(1, self.clusterBank.numSpeakers+1):
-            self.clusterChoice.Append(self.clusterBank.speakerDescriptions[c])
+            items.append(self.clusterBank.speakerDescriptions[c])
+        items.sort()
+        self.clusterChoice.AppendItems(items)
+        curCluster = self.clusterBank.speakerDescriptions[self.clusterBank.currentSpeaker]
+        i = self.clusterChoice.FindString(curCluster)
+        self.clusterChoice.SetSelection(i)
 
     def renderData(self, evt):
         pass
@@ -556,6 +587,7 @@ class Panel1(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK :
             path = dlg.GetPath()
             self.doSaveData(path)
+        dlg.Destroy()
 
     def saveCodes(self, evt):
 
@@ -564,6 +596,7 @@ class Panel1(wx.Panel):
             if dlg.ShowModal() == wx.ID_OK :
                 path = dlg.GetPath()
                 self.doSaveData(path)
+                dlg.Destroy()
 
         else:
             path = self.currentDataFile
@@ -575,18 +608,19 @@ class Panel1(wx.Panel):
         self.currentDataFile = path
 
     def onLoadVideoFile(self, evt):
-        self.wantToSave()
         dlg = wx.FileDialog(self, message="Choose a media file",
                             defaultDir=os.getcwd(), defaultFile="",
                             style=wx.OPEN | wx.CHANGE_DIR )
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
-            self.doLoadVideoFile(path)
+            dlg.Destroy()
+            if self.doLoadVideoFile(path) < 0:
+                return -1
 
-        dlg.Destroy()
-
-        self.onNewCodeBank(1)
+        if self.codeBank is None:
+            self.onNewCodeBank(1)
         self.loadDataButton.Enable()
+        return 1
 
     def loadTestVideo(self, evt):
         self.wantToSave()
@@ -620,24 +654,46 @@ class Panel1(wx.Panel):
 
     def reloadSpeakerList(self):
         self.InOutList.DeleteAllItems()
+        a = 0
         for i in self.codeBank.codes[self.codeBank.currentSpeaker]:
             self.InOutList.Append(i)
+            self.InOutList.SetItemData(a, i[0])
+            a += 1
+        self.InOutList.SortItems(self.codeBank.itemCompare)
 
     def reloadClusterList(self):
         self.ClusterList.DeleteAllItems()
+        a = 0
         for i in self.clusterBank.codes[self.clusterBank.currentSpeaker]:
             self.ClusterList.Append(i)
+            self.ClusterList.SetItemData(a, i[0])
+            a += 1
+        self.ClusterList.SortItems(self.clusterBank.itemCompare)
 
     def wantToSave(self):
+        """
+        Asks the user if they want to save the data file if it hasn't been saved since the last change.
+        :return: -1 if cancel, 1 if "Yes" (after the save occurs), and 2 if "No." 3 if no save is needed.
+        """
         if self.needToSaveFlag:
-            dlg = wx.MessageDialog(self, 'Do you want to save your current data before making a new data object?',
-                                   'Save Current Data?',
-                                   #wx.OK | wx.ICON_INFORMATION
-                                   wx.YES_NO | wx.NO_DEFAULT #| wx.CANCEL | wx.ICON_INFORMATION
+            dlg = wx.MessageDialog(self, "Do you want to save your current data? If you don't, you may lose work.",
+                                   "Save Work?",
+                                   wx.YES_NO | wx.YES_DEFAULT | wx.CANCEL #| wx.ICON_INFORMATION
                                    )
-            if dlg.ShowModal() == wx.ID_YES:
-                self.saveCodes(None)
+            response = dlg.ShowModal()
+            if response == wx.ID_YES:
+                response2 = self.saveCodes(None)
+                if response2 == wx.ID_CANCEL:
+                    return -1
+                else:
+                    return 1
+            elif response == wx.ID_CANCEL:
+                return -1
+            else:
+                return 2
             dlg.Destroy()
+        else:
+            return 3
 
     def needToSave(self, need):
         """
@@ -652,13 +708,14 @@ class Panel1(wx.Panel):
             self.needToSaveText.SetLabel("data saved!")
 
     def onNewCodeBank(self, evt):
-        self.codeBank = SpeakingCode.SpeakingCodes(self.mc.Length(), numSpeakers=5)
-        self.currentSpeakerNumber.SetLabel(str(self.codeBank.currentSpeaker))
-        print "Number of speakers ", self.codeBank.numSpeakers
-        self.checkpointflag = True # Tells the timer to check the speaker list points
-        self.currentDataFile = None # Tells the "Save" button that we need to do a "Save As"
-        self.needToSave(True) # Updates the save status text
-        self.refreshThings()
+        if self.wantToSave() > 0:
+            self.codeBank = SpeakingCode.SpeakingCodes(self.mc.Length(), numSpeakers=5)
+            self.currentSpeakerNumber.SetLabel(str(self.codeBank.currentSpeaker))
+            print "Number of speakers ", self.codeBank.numSpeakers
+            self.checkpointflag = True # Tells the timer to check the speaker list points
+            self.currentDataFile = None # Tells the "Save" button that we need to do a "Save As"
+            self.needToSave(True) # Updates the save status text
+            self.refreshThings()
 
     def addTimeCode(self, evt):
 
@@ -677,12 +734,14 @@ class Panel1(wx.Panel):
     def doLoadVideoFile(self, path):
         if not self.mc.Load(path):
             wx.MessageBox("Unable to load %s: Unsupported format?" % path, "ERROR", wx.ICON_ERROR | wx.OK)
+            return -1
         else:
             folder, filename = os.path.split(path)
             #self.st_file.SetLabel('%s' % filename)
             self.mc.SetInitialSize(self.mc.GetBestSize())
             self.GetSizer().Layout()
             self.slider.SetRange(0, self.mc.Length())
+            return 1
 
     def onJump(self, evt):
         jump = self.jumpValues[evt]
@@ -847,11 +906,27 @@ class Panel1(wx.Panel):
     def giveBackFocus(self, evt):
         evt.SetWindow(self)
 
+
+class MyFrame(wx.Frame):
+    def __init__(self, parent=None, id=-1, label="Speaking Coder", size = (800, 600)):
+        wx.Frame.__init__(self, parent, id, label, size=size)
+        self.Bind(wx.EVT_CLOSE, self.onClose)
+
+        self.panel = Panel1(self, -1)
+
+    def onClose(self, evt):
+        save = self.panel.wantToSave()
+        if save > 0:
+            self.Destroy()
+        else:
+            pass # Do nothing if they press Cancel.
+
+
 if __name__ == '__main__':
     app = wx.App()
     # create a window/frame, no parent, -1 is default ID
-    frame = wx.Frame(None, -1, "Speaking Coder", size = (800, 600))
+    frame = MyFrame(None, -1, "Speaking Coder", size = (800, 600))
     # call the derived class
-    Panel1(frame, -1)
+    #Panel1(frame, -1)
     frame.Show(1)
     app.MainLoop()

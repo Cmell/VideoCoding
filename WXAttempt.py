@@ -194,8 +194,8 @@ class Panel1(wx.Panel):
         copyAllPointsToSpeaker = wx.Button(self, -1, "Copy All Points to Speaker")
         self.Bind(wx.EVT_BUTTON, self.copyAllPointsToSpeaker, copyAllPointsToSpeaker)
 
-        loadTestVid = wx.Button(self, -1, "Load Test Video")
-        self.Bind(wx.EVT_BUTTON, self.loadTestVideo, loadTestVid)
+        #loadTestVid = wx.Button(self, -1, "Load Test Video")
+        #self.Bind(wx.EVT_BUTTON, self.loadTestVideo, loadTestVid)
 
         slider = wx.Slider(self, -1, 0, 0, 0, size=wx.Size(300, -1))
         self.slider = slider
@@ -299,8 +299,8 @@ class Panel1(wx.Panel):
         hs03.Add(self.needToSaveText, 0, wx.EXPAND | wx.ALIGN_LEFT)
         hs03.Add((0, 0), 1)
         hs03.Add(loadVideoButton, 0, wx.EXPAND | wx.ALIGN_RIGHT)
-        hs03.Add((0, 0), 1)
-        hs03.Add(loadTestVid, 0, wx.ALIGN_RIGHT)
+        #hs03.Add((0, 0), 1)
+        #hs03.Add(loadTestVid, 0, wx.ALIGN_RIGHT)
         vs02.Add(self.mc, 1, wx.EXPAND)
         vs02.Add(slider, 0, wx.EXPAND)
         hs04 = wx.BoxSizer(wx.HORIZONTAL)

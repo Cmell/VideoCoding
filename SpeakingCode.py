@@ -258,8 +258,8 @@ class SpeakingCodes:
 
                 for row in r:
                     s = row[7]
-                    IN = int(row[2])
-                    OUT = int(row[2])+int(row[3])
+                    IN = int(row[2]) * 10 # The seg file generates times in centiseconds, so convert to milliseconds.
+                    OUT = (int(row[2])+int(row[3])) * 10
                     if row[7] in tempDict:
                         tempDict[s].append((IN, OUT))
                     else:

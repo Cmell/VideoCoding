@@ -908,7 +908,7 @@ class Panel1(wx.Panel):
 
 
 class MyFrame(wx.Frame):
-    def __init__(self, parent=None, id=-1, label="Speaking Coder", size = (800, 600)):
+    def __init__(self, parent=None, id=-1, label="Speaking Coder", size=(800, 600)):
         wx.Frame.__init__(self, parent, id, label, size=size)
         self.Bind(wx.EVT_CLOSE, self.onClose)
 
